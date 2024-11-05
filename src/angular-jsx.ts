@@ -49,6 +49,8 @@ function renderValue(v, key?: string) {
     }
     if (typeof v === 'object' && key === 'style') {
         return Object.entries(v).map(([k, v]) => [k, v].join(':')).join(';');
+    } else if (typeof v === 'object') {
+        return `{${Object.entries(v).map(([k, v]) => [k, v].join(':')).join(',')}}`;
     }
     if (!key && v[ProxySymbol]) {
         return `{{${v}}}`;
@@ -73,9 +75,6 @@ function createProxy(parts: Array<string | number>, scopeName = '$') {
         }
     });
 }
-
-console.log(createProxy(['$'])('my var', 'uppercase'));
-console.log('' + (createProxy(['$scope'], '$scope') as any).scoped);
 
 function pathReducer(p: string | number, c: string | number, i: number) {
     return p + (Number.isInteger(c) ? `[${c}]` : `.${c}`);
