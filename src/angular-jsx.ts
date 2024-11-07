@@ -45,7 +45,8 @@ export function createElement(tagName, props?: Record<string, any>, ...children)
 
 function renderValue(v, key?: string) {
     if (v instanceof Function && !v[ProxySymbol]) {
-        return `${v.toString().split('=>')[1].trim()}`;
+        const expr = v.toString().split('=>')[1].trim();
+        return key ? expr : `{{${expr}}}`;
     }
     if (typeof v === 'object' && key === 'style') {
         return Object.entries(v).map(([k, v]) => [k, v].join(':')).join(';');
@@ -124,7 +125,7 @@ export function jsxTemplateUrl(render: (...args: any) => HTMLElement) {
     return ($sce: ng.ISCEService) => fn($sce);
 }
 
-export function jsxTemplate(render: (...args: any) => HTMLElement | HTMLElement[], scopeName: string) {
+export function jsxTemplate(render: (...args: any) => HTMLElement | HTMLElement[], scopeName?: string) {
     const compiled = compile(render, scopeName);
     let html = '';
     if (Array.isArray(compiled)) html = compiled.map(el => el.outerHTML).join('\n');
