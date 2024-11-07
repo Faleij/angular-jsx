@@ -49,7 +49,7 @@ function renderValue(v, key?: string) {
         return key ? expr : `{{${expr}}}`;
     }
     if (typeof v === 'object' && key === 'style') {
-        return Object.entries(v).map(([k, v]) => [k, v].join(':')).join(';');
+        return Object.entries(v).map(([k, v]) => [k.replace(/([A-Z])/g, '-$1').toLowerCase(), v].join(':')).join(';');
     } else if (typeof v === 'object') {
         return `{${Object.entries(v).map(([k, v]) => [k, v].join(':')).join(',')}}`;
     }
