@@ -16,9 +16,17 @@ const ProxySymbol = Symbol('proxyPath');
 
 
 /** returns str like: "{{ str | filter1 | filter2 ... }}" */
-export function interpolation(...args: string[])
-export function interpolation(str: string, ...filters: string[]) {
+export function interpolation(str: string | Function | (() => any), ...filters: string[]) {
+    console.log('interpolation', str);
+    if (str instanceof Function) {
+        console.log('str', str, str.toString());
+        if (!str[ProxySymbol]) str = str.toString().split('=>')[1].trim();
+    }
     return `{{${str}${filters.length?'|':''}${filters.join('|')}}}`;
+}
+
+export function scope(fn: (...args: any[]) => HTMLElement | HTMLElement[]) {
+    return compile(fn);
 }
 
 export function createElement(tagName, props?: Record<string, any>, ...children) {
@@ -62,7 +70,7 @@ function renderValue(v, key?: string) {
 function createProxy(parts: Array<string | number>, scopeName = '$') {
     const render = (...args) => {
         const argsStr = args.join(',');
-        if (parts.length === 1 && parts[0] === scopeName) return interpolation(...args);
+        if (parts.length === 1 && parts[0] === scopeName) return interpolation(args[0], ...args.slice(1));
         return `${renderPath(parts, scopeName)}(${argsStr})`;
     };
     return new Proxy(render, {
@@ -71,7 +79,10 @@ function createProxy(parts: Array<string | number>, scopeName = '$') {
             if (['valueOf', 'toString', 'toJSON', Symbol.toPrimitive].includes(key)) {
                 return () => renderPath(parts, scopeName);
             }
-            if (typeof key === 'symbol') throw new Error('Symbol support not implemented');
+            if (typeof key === 'symbol') {
+                console.log(key);
+                throw new Error('Symbol support not implemented');
+            }
             return createProxy([...parts, Number.isInteger(+key) ? +key : key], scopeName);
         }
     });
@@ -86,10 +97,33 @@ function renderPath(parts: Array<string | number>, scopeName) {
     return parts.reduce(pathReducer);
 }
 
+/** TODO: support all function types */
 export function argumentNames(fn: (...args: any) => void): string[] {
-    return fn.toString().slice(1).split(')')[0].split(/,|\{|\}/).map(s => s.trim()).filter(s => s.length);
+    if (typeof fn !== 'function') {
+        throw new TypeError('Input must be a function');
+    }
+
+    // Convert the function to a string representation
+    const fnStr = fn.toString().trim();
+
+    // Match function arguments using a regular expression
+    const argsMatch = fnStr.match(/(?:\(([^)]*)\)|([^=\s,]+))\s*=>|function\s*[^(]*\(([^)]*)\)/);
+
+    if (!argsMatch) {
+        return []; // No arguments found
+    }
+
+    // Extract the appropriate group (group 1, 2, or 3 depending on the match)
+    const args = argsMatch[1] || argsMatch[2] || argsMatch[3] || '';
+
+    // Split the arguments by comma, trim whitespace, and filter out empty values
+    return args
+        .split(',')
+        .map(arg => arg.trim().replace(/\/\*.*?\*\//g, '')) // Remove inline comments
+        .filter(arg => arg);
 }
 
+/** TODO: support all function types */
 function parseArguments(fn: (...args: any) => void): Array<string | string[]> {
     const argsStr: string = fn.toString().slice(1).split(')')[0];
     return argsStr.split(/(\{.*\})/).flatMap(s => 
@@ -107,6 +141,10 @@ export function compile(render: (...args: any) => HTMLElement | HTMLElement[], s
         return createProxy([s], scopeName);
     });
     return render(...props);
+}
+
+export function inExpr(arr: any[] | Record<any, any>, itemName: string) {
+    return `${itemName} in ${arr}`;
 }
 
 export function jsxTemplateUrl(render: (...args: any) => HTMLElement) {
@@ -168,16 +206,30 @@ export interface IngRepeatScope extends IScope {
     $odd: boolean;
 }
 
+interface ngRepeatFn<T extends Array<any>> {
+    (item: T[0], scope: IngRepeatScope): HTMLElement;
+}
+interface ngRepeatFnObj<T extends Record<string | number, X>, X = any> {
+    (key: string | number, item: X, scope: IngRepeatScope): HTMLElement;
+}
 // https://docs.angularjs.org/api/ng/directive/ngRepeat
 // TODO: support (key, value)
 // TODO: support "track by $expr"
 // TODO: support "ng-repeat-start" "ng-repeat-end"
 // TODO: support filter "item in items | filter : x | orderBy : order | limitTo : limit as results track by item.id"
-export function ngRepeat<T extends Array<any>, F extends (item: T[0], scope: IngRepeatScope) => HTMLElement>(items: T, fn: F) {
+export function ngRepeat<T extends Array<any>, F extends ngRepeatFn<T>>(items: T, fn: F) {
     const args = argumentNames(fn);
     const item = args.find(el => !el.startsWith('$'));
     const el = compile(fn) as HTMLElement;
+    console.log('ngRepeat', { item, items, fn, el });
     el.setAttribute('ng-repeat', `${item} in ${items}`);
+    return el;
+}
+export function ngRepeatObj<T extends Record<string | number, any>, F extends ngRepeatFnObj<T>>(items: T, fn: F) {
+    const args = argumentNames(fn);
+    const [key, item] = args.filter(el => !el.startsWith('$'));
+    const el = compile(fn) as HTMLElement;
+    el.setAttribute('ng-repeat', `(${key}, ${item}) in ${items}`);
     return el;
 }
 

@@ -1,10 +1,10 @@
 {
   "name": "angular-jsx",
-  "version": "0.0.0-alpha",
+  "version": "0.0.1-alpha",
   "description": "",
   "main": "src/angular-jsx.ts",
   "scripts": {
-    "build:watch": "tsc --watch --empty",
+    "build:watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -12,7 +12,10 @@
   "license": "MIT",
   "devDependencies": {
     "@types/angular": "^1.8.9",
+    "angular": "^1.8.2",
     "happy-dom": "^15.7.4",
+    "jsdom": "^25.0.1",
+    "@preact/signals-core": "^1.8.0",
     "typescript": "^5.6.2"
   },
   "volta": {
