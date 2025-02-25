@@ -17,9 +17,7 @@ const ProxySymbol = Symbol('proxyPath');
 
 /** returns str like: "{{ str | filter1 | filter2 ... }}" */
 export function interpolation(str: string | Function | (() => any), ...filters: string[]) {
-    console.log('interpolation', str);
     if (str instanceof Function) {
-        console.log('str', str, str.toString());
         if (!str[ProxySymbol]) str = str.toString().split('=>')[1].trim();
     }
     return `{{${str}${filters.length?'|':''}${filters.join('|')}}}`;
@@ -80,7 +78,6 @@ function createProxy(parts: Array<string | number>, scopeName = '$') {
                 return () => renderPath(parts, scopeName);
             }
             if (typeof key === 'symbol') {
-                console.log(key);
                 throw new Error('Symbol support not implemented');
             }
             return createProxy([...parts, Number.isInteger(+key) ? +key : key], scopeName);
@@ -221,7 +218,6 @@ export function ngRepeat<T extends Array<any>, F extends ngRepeatFn<T>>(items: T
     const args = argumentNames(fn);
     const item = args.find(el => !el.startsWith('$'));
     const el = compile(fn) as HTMLElement;
-    console.log('ngRepeat', { item, items, fn, el });
     el.setAttribute('ng-repeat', `${item} in ${items}`);
     return el;
 }
