@@ -12,13 +12,19 @@ function once<T extends (...args: any[]) => any>(fn: T): T {
     }) as any;
 }
 
-const ProxySymbol = Symbol('proxyPath');
+export const ProxySymbol = Symbol('proxyPath');
 
+function transformFunction(fn) {
+    let str = fn.toString().split('=>')[1].trim();
+    if (str.startsWith('{') && str.endsWith('}')) str = str.slice(1, -1);
+    return str;
+}
 
 /** returns str like: "{{ str | filter1 | filter2 ... }}" */
 export function interpolation(str: string | Function | (() => any), ...filters: string[]) {
-    if (str instanceof Function) {
-        if (!str[ProxySymbol]) str = str.toString().split('=>')[1].trim();
+    if (typeof str === 'string') str = `"${str}"`;
+    else if (str instanceof Function) {
+        if (!str[ProxySymbol]) str = transformFunction(str);
     }
     return `{{${str}${filters.length?'|':''}${filters.join('|')}}}`;
 }
@@ -51,7 +57,7 @@ export function createElement(tagName, props?: Record<string, any>, ...children)
 
 function renderValue(v, key?: string) {
     if (v instanceof Function && !v[ProxySymbol]) {
-        const expr = v.toString().split('=>')[1].trim();
+        const expr = transformFunction(v);
         return key ? expr : `{{${expr}}}`;
     }
     if (typeof v === 'object' && key === 'style') {
