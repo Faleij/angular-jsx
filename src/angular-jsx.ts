@@ -68,6 +68,7 @@ function renderValue(v, key?: string) {
     if (!key && v[ProxySymbol]) {
         return `{{${v}}}`;
     }
+    if (typeof v === 'boolean' || typeof v === 'undefined' || v === null) return '';
     return v.toString();
 }
 
