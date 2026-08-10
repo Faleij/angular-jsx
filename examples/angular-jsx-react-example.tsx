@@ -1,33 +1,40 @@
-import { aJsxDirective2, createElement, useState as _useState } from './angular-jsx-react';
+import {
+  aJsxDirective2,
+  createElement,
+  useState as _useState,
+} from "../src/angular-jsx-react";
 const useState = _useState;
 
 import { JSDOM } from "jsdom";
-const { window } = new JSDOM(`
+const { window } = new JSDOM(
+  `
 <html>
 <head>
 </head>
 <body>
 </body>
 </html>
-`, {
+`,
+  {
     url: "https://example.org/",
     referrer: "https://example.com/",
     contentType: "text/html",
-});
+  },
+);
 
 // happy-dom is only used to mock DOM in node
 (globalThis as any).window = window;
 (globalThis as any).document = window.document;
 (globalThis as any).Node = window.Node;
 (globalThis as any).createElement = createElement;
-import 'angular/angular';
+import "angular/angular";
 
 const angular = window.angular;
 
 async function updateName(name: string) {
-    return new Promise((r) => {
-        setTimeout(r, 500);
-    })
+  return new Promise((r) => {
+    setTimeout(r, 500);
+  });
 }
 
 function UpdateName({}) {
@@ -36,7 +43,7 @@ function UpdateName({}) {
   const [isPending, setIsPending] = useState(false);
 
   const handleSubmit = async () => {
-    console.log('handleSubmit');
+    console.log("handleSubmit");
     setIsPending(true);
     const error = await updateName(name);
     setIsPending(false);
@@ -57,19 +64,17 @@ function UpdateName({}) {
   );
 }
 
-const app = angular.module('app', []);
+const app = angular.module("app", []);
 
-app.directive('updateName', aJsxDirective2(UpdateName));
+app.directive("updateName", aJsxDirective2(UpdateName));
 
-var injector = angular.injector(['ng', 'app']);
+var injector = angular.injector(["ng", "app"]);
 
-const $compile = injector.get('$compile');
-const $rootScope = injector.get('$rootScope');
+const $compile = injector.get("$compile");
+const $rootScope = injector.get("$rootScope");
 
 var element = $compile("<update-name></update-name>")($rootScope);
 // fire all the watches, so the scope expression {{1 + 1}} will be evaluated
 $rootScope.$digest();
-element.find('input')[0].value = 'test change';
-console.log(element.find('button')[0].click());
-
-
+element.find("input")[0].value = "test change";
+console.log(element.find("button")[0].click());
