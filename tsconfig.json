@@ -19,6 +19,7 @@
     "isolatedModules": true,
     "jsx": "react",
     "jsxFactory": "createElement",
+    "jsxFragmentFactory": "Fragment",
     "outDir": "dist",
   },
   "ts-node": {

@@ -14,6 +14,17 @@ function once<T extends (...args: any[]) => any>(fn: T): T {
 
 export const ProxySymbol = Symbol('proxyPath');
 
+/**
+ * jsxFragmentFactory — children only, no wrapper element.
+ * Must be a function (not a Symbol) so TypeScript accepts `<>...</>`.
+ */
+export function Fragment(_props?: Record<string, any> | null): HTMLElement {
+    throw new Error('Fragment is only valid as a JSX fragment factory tag');
+}
+
+/** @deprecated Use `<>...</>` / `Fragment` instead of `jsx-unwrap`. Kept for runtime unwrap of Fragment roots. */
+const JSX_UNWRAP = 'jsx-unwrap';
+
 function transformFunction(fn) {
     let str = fn.toString().split('=>')[1].trim();
     if (str.startsWith('{') && str.endsWith('}')) str = str.slice(1, -1);
@@ -34,8 +45,9 @@ export function scope(fn: (...args: any[]) => HTMLElement | HTMLElement[]) {
 }
 
 export function createElement(tagName, props?: Record<string, any>, ...children) {
-    const el = document.createElement(tagName);
-    if (props) for (const [k, v] of Object.entries(props)) {
+    const el = document.createElement(tagName === Fragment ? 'div' : tagName);
+    if (tagName === Fragment) el.setAttribute(JSX_UNWRAP, '');
+    else if (props) for (const [k, v] of Object.entries(props)) {
         el.setAttribute(k, renderValue(v, k));
     }
     for (const child of children) {
@@ -127,15 +139,19 @@ export function argumentNames(fn: (...args: any) => void): string[] {
         .filter(arg => arg);
 }
 
-/** TODO: support all function types */
+/** TODO: support destructured args; reuse argumentNames so minified `ctrl=>` survives. */
 function parseArguments(fn: (...args: any) => void): Array<string | string[]> {
-    const argsStr: string = fn.toString().slice(1).split(')')[0];
-    return argsStr.split(/(\{.*\})/).flatMap(s => 
-        s.startsWith('{') ?
-        [s.slice(1, -1).split(',').map(s => s.trim()).filter(s => s.length)]
-        :
-        s.split(',').map(s => s.trim()) as any
-    ).filter(s => s.length) as any;
+    return argumentNames(fn).map((arg) => {
+        // ponytail: destructuring `{a,b}` not supported here; argumentNames returns raw text
+        if (arg.startsWith('{') && arg.endsWith('}')) {
+            return arg
+                .slice(1, -1)
+                .split(',')
+                .map((s) => s.trim())
+                .filter((s) => s.length);
+        }
+        return arg;
+    });
 }
 
 export function compile(render: (...args: any) => HTMLElement | HTMLElement[], scopeName?: string): HTMLElement | HTMLElement[] {
@@ -167,11 +183,18 @@ export function jsxTemplateUrl(render: (...args: any) => HTMLElement) {
     return ($sce: ng.ISCEService) => fn($sce);
 }
 
-export function jsxTemplate(render: (...args: any) => HTMLElement | HTMLElement[], scopeName?: string) {
+export function jsxTemplate(
+    render: string | ((...args: any) => HTMLElement | HTMLElement[]),
+    scopeName?: string,
+) {
+    if (typeof render === 'string') {
+        const html = render;
+        return (): string => html;
+    }
     const compiled = compile(render, scopeName);
     let html = '';
     if (Array.isArray(compiled)) html = compiled.map(el => el.outerHTML).join('\n');
-    else if (compiled.hasAttribute('jsx-unwrap')) html = compiled.innerHTML;
+    else if (compiled.hasAttribute(JSX_UNWRAP)) html = compiled.innerHTML;
     else html = compiled.outerHTML;
     return (): string => html;
 }
@@ -180,18 +203,52 @@ type Cls = abstract new (...args: any) => any;
 
 export interface IJsxComponentOptions<T extends Cls> extends Omit<ng.IComponentOptions, 'template' | 'templateUrl' | 'controller' | 'controllerAs'> {
     controller: T;
-    template: ($ctrl: InstanceType<T>, ...args: [ControllerScope<T>, ...any]) => ReturnType<typeof compile>;
+    controllerAs?: string;
+    template: string | (($ctrl: InstanceType<T>, ...args: [ControllerScope<T>, ...any]) => ReturnType<typeof compile>);
 }
 
 export type ControllerScope<T extends Cls, TScope = InstanceType<T>["$scope"]> = (TScope extends IScope ? TScope : IScope);
 
-export function jsxComponent<T extends Cls>({ template, ...args}: IJsxComponentOptions<T>) {
+function buildJsxComponentOptions<T extends Cls>({
+    template,
+    controllerAs: controllerAsOpt,
+    ...args
+}: IJsxComponentOptions<T>) {
+    if (typeof template === 'string') {
+        return {
+            ...args,
+            template,
+            controllerAs: controllerAsOpt || '$ctrl',
+        };
+    }
     const [controllerAs, scopeName] = argumentNames(template);
     return {
         ...args,
         template: jsxTemplate(template, scopeName),
-        controllerAs,
+        controllerAs: controllerAsOpt || controllerAs,
+    };
+}
+
+/** Build component options only (for `app.component(name, …)` or `$mdDialog.show`). */
+export function jsxComponent<T extends Cls>(options: IJsxComponentOptions<T>): ReturnType<typeof buildJsxComponentOptions<T>>;
+/** Register the component on the Angular module. */
+export function jsxComponent<T extends Cls>(
+    angularApp: ng.IModule,
+    componentName: string,
+    options: IJsxComponentOptions<T>,
+): ng.IModule;
+export function jsxComponent<T extends Cls>(
+    angularAppOrOptions: ng.IModule | IJsxComponentOptions<T>,
+    componentName?: string,
+    options?: IJsxComponentOptions<T>,
+) {
+    if (componentName != null && options != null) {
+        return (angularAppOrOptions as ng.IModule).component(
+            componentName,
+            buildJsxComponentOptions(options) as unknown as ng.IComponentOptions,
+        );
     }
+    return buildJsxComponentOptions(angularAppOrOptions as IJsxComponentOptions<T>);
 }
 
 

@@ -26,7 +26,7 @@ class ExampleControllerClass {
 // {$.scopedVariable}
 // {$(scopedVariable)}
 
-// use: angular.module('myApp').component('myComponent', jsxComponent({...}));
+// jsxComponent(app, 'myComponent', {...}) or app.component('myComponent', jsxComponent({...}))
 const componentConfig = jsxComponent({
     controller: ExampleControllerClass,
     // template function automagically sets "controllerAs" from first argument name
@@ -51,4 +51,4 @@ const componentConfig = jsxComponent({
     ),
 })
 
-console.log(componentConfig.template());
+console.log(typeof componentConfig.template === 'function' ? componentConfig.template() : componentConfig.template);

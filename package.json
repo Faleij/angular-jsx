@@ -1,15 +1,25 @@
 {
   "name": "angular-jsx",
-  "version": "0.0.1-alpha",
+  "version": "0.0.2-alpha",
   "description": "",
   "main": "src/angular-jsx.ts",
+  "exports": {
+    ".": "./src/angular-jsx.ts",
+    "./loader": "./dist/tsx-loader.js",
+    "./tsx-to-angular": "./dist/tsx-to-angular.js"
+  },
   "scripts": {
+    "build": "tsc -p .",
     "build:watch": "tsc --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "selfcheck": "tsc -p . && node dist/tsx-to-angular.selfcheck.js",
+    "test": "npm run selfcheck"
   },
   "keywords": [],
   "author": "faleij@gmail.com",
   "license": "MIT",
+  "peerDependencies": {
+    "typescript": "*"
+  },
   "devDependencies": {
     "@types/angular": "^1.8.9",
     "angular": "^1.8.2",
