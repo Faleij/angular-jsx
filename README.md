@@ -20,13 +20,7 @@ Import the factories in each `.tsx` file that uses JSX or fragments:
 import { createElement, Fragment, jsxComponent } from 'angular-jsx';
 ```
 
-When this package is linked into an app that also uses `@types/angular-material` (or other `angular` module augmentations), pin a single `angular` types path in the app `tsconfig` so TypeScript does not pick up a nested `@types/angular` from this package:
-
-```json
-"paths": {
-  "angular": ["node_modules/@types/angular/index.d.ts"]
-}
-```
+The runtime package uses ambient `angular` / `ng` types (no `import from 'angular'`), so linking this package does not load a second `@types/angular` and drop app augmentations such as `@types/angular-material`.
 
 ## Component
 
@@ -60,17 +54,21 @@ app.component(
 
 ## Expression rules
 
+With the **compile-time** webpack loader or Vite plugin, attribute expressions are copied from the AST as Angular source (they are not run as JavaScript):
+
 | TSX | Angular |
 |-----|---------|
 | `ng-model={ctrl.textSearch}` | `ng-model="ctrl.textSearch"` |
+| `ng-if={!ctrl.isDialog}` | `ng-if="!ctrl.isDialog"` |
 | `ng-if={() => !ctrl.isDialog}` | `ng-if="!ctrl.isDialog"` |
+| `ng-change={ctrl.compileTerms()}` | `ng-change="ctrl.compileTerms()"` |
 | `{ctrl.name}` (child) | `{{ctrl.name}}` |
 | `{[ctrl.name, 'uppercase']}` | `{{ctrl.name\|uppercase}}` |
 | `style={{ minWidth: '140px' }}` | `style="min-width:140px"` |
 | `ng-model-options={{ debounce: 300 }}` | `ng-model-options="{debounce:300}"` |
 | boolean prop `flex` | `flex=""` |
 
-Use an arrow for any expression that must stay as Angular source (do not write `ng-if={!ctrl.isDialog}` — that runs in JavaScript against a Proxy).
+Without the loader/plugin (runtime Proxies), prefer arrows for boolean/call expressions: `ng-if={!ctrl.isDialog}` runs JavaScript `!` on a Proxy and is wrong.
 
 ## Fragment
 
@@ -96,12 +94,19 @@ Import `Fragment` and set `jsxFragmentFactory` (see Setup).
 
 `ngRepeat` needs a **single root element**. For several roots per item, keep a wrapper (or use `ng-repeat-start` / `ng-repeat-end` by hand). Fragment unwrap for multi-root repeats is not automatic yet.
 
-## Compile-time webpack loader (recommended)
+## Compile-time transform (recommended)
 
-Runtime compile uses `Function#toString()`. Minifiers can break that (for example `ctrl=>((0,createElement)…)`). Prefer the loader: it turns `jsxComponent` / `jsxTemplate` JSX into static Angular HTML **before** `ts-loader`. The loader needs `typescript` from the host app (`peerDependencies`).
+Runtime compile uses `Function#toString()`. Minifiers can break that (for example `ctrl=>((0,createElement)…)`). Prefer the webpack loader or Vite plugin: both turn `jsxComponent` / `jsxTemplate` JSX into static Angular HTML **before** other TSX tooling. They need `typescript` from the host app (`peerDependencies`).
 
-1. Build the package so `dist/tsx-loader.js` exists: `npm run build`
-2. Wire webpack (loaders run right → left):
+Build the package so `dist/` exists: `npm run build`
+
+If a template cannot be lowered statically, the call is left unchanged and the runtime path still runs. Runtime `parseArguments` uses the same regex as `argumentNames` so minified `ctrl=>` forms still parse when needed.
+
+The transform keeps the `ctrl.` prefix in the HTML and sets `controllerAs` from the template parameter name. After lowering, the template is a string, so minifiers do not rename those paths.
+
+### Webpack loader
+
+Loaders run right → left; put `angular-jsx/loader` **before** `ts-loader` (rightmost in `use`):
 
 ```js
 {
@@ -114,7 +119,34 @@ Runtime compile uses `Function#toString()`. Minifiers can break that (for exampl
 { test: /\.ts$/, loader: 'ts-loader', options: { allowTsInNodeModules: true } },
 ```
 
-If a template cannot be lowered statically, the call is left unchanged and the runtime path still runs. Runtime `parseArguments` uses the same regex as `argumentNames` so minified `ctrl=>` forms still parse when needed.
+### Vite plugin
+
+`angularJsx()` uses `enforce: 'pre'` so templates lower before esbuild TSX. The package ships CommonJS; from an ESM `vite.config.mts` use `createRequire`:
+
+```ts
+import { createRequire } from 'node:module';
+import { defineConfig } from 'vite';
+
+const require = createRequire(import.meta.url);
+const { angularJsx } = require('angular-jsx/vite');
+
+export default defineConfig({
+  plugins: [
+    angularJsx(), // first / early in the list
+    // …
+  ],
+  resolve: {
+    // optional: point at a local checkout / symlink
+    // alias: { 'angular-jsx': path.resolve(__dirname, '../modules/angular-jsx/src/angular-jsx.ts') },
+  },
+  optimizeDeps: {
+    // keep the runtime package out of prebundle if you alias to source
+    exclude: ['angular-jsx'],
+  },
+});
+```
+
+Only `.tsx` files that contain `jsxComponent` or `jsxTemplate` are transformed.
 
 ### Exports
 
@@ -122,7 +154,8 @@ If a template cannot be lowered statically, the call is left unchanged and the r
 |------|------|
 | `angular-jsx` | Runtime API (`src/angular-jsx.ts`) |
 | `angular-jsx/loader` | Webpack loader (`dist/tsx-loader.js`) |
-| `angular-jsx/tsx-to-angular` | Transform used by the loader |
+| `angular-jsx/vite` | Vite plugin (`dist/vite-plugin.js`) |
+| `angular-jsx/tsx-to-angular` | Shared transform used by loader and Vite plugin |
 
 ## Scripts
 

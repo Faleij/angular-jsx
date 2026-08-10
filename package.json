@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/angular-jsx.ts",
     "./loader": "./dist/tsx-loader.js",
+    "./vite": "./dist/vite-plugin.js",
     "./tsx-to-angular": "./dist/tsx-to-angular.js"
   },
   "scripts": {

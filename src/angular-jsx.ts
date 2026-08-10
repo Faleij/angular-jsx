@@ -1,4 +1,4 @@
-import { IRootScopeService, IScope } from 'angular';
+type IScope = angular.IScope;
 
 function once<T extends (...args: any[]) => any>(fn: T): T {
     let ran = false;
