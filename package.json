@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/angular-jsx.ts",
   "exports": {
-    ".": "./src/angular-jsx.ts",
+    ".": "./src/angular-jsx.js",
     "./loader": "./dist/tsx-loader.js",
     "./vite": "./dist/vite-plugin.js",
     "./tsx-to-angular": "./dist/tsx-to-angular.js"
@@ -22,12 +22,14 @@
   "peerDependencies": {
     "typescript": "*"
   },
+  "dependencies": {
+    "@preact/signals-core": "^1.8.0"
+  },
   "devDependencies": {
     "@types/angular": "^1.8.9",
-    "angular": "^1.8.2",
     "happy-dom": "^15.7.4",
     "jsdom": "^25.0.1",
-    "@preact/signals-core": "^1.8.0",
+    "angular": "^1.8.2",
     "typescript": "^5.6.2"
   },
   "volta": {
