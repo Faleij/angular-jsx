@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc -p .",
     "build:watch": "tsc --watch",
+    "postinstall": "npm run build",
     "selfcheck": "tsc -p . && node dist/tsx-to-angular.selfcheck.js",
     "test": "npm run selfcheck"
   },
