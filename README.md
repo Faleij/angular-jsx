@@ -113,7 +113,7 @@ Loaders run right → left; put `angular-jsx/loader` **before** `ts-loader` (rig
   test: /\.tsx$/,
   use: [
     { loader: 'ts-loader', options: { allowTsInNodeModules: true } },
-    { loader: require.resolve('angular-jsx/loader') },
+    { loader: 'angular-jsx/loader' },
   ],
 },
 { test: /\.ts$/, loader: 'ts-loader', options: { allowTsInNodeModules: true } },
@@ -137,7 +137,7 @@ export default defineConfig({
   ],
   resolve: {
     // optional: point at a local checkout / symlink
-    // alias: { 'angular-jsx': path.resolve(__dirname, '../modules/angular-jsx/src/angular-jsx.ts') },
+    // alias: { 'angular-jsx': path.resolve('angular-jsx/loader') },
   },
   optimizeDeps: {
     // keep the runtime package out of prebundle if you alias to source
